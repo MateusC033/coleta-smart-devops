@@ -1,0 +1,37 @@
+# Reduz o contexto enviado ao Docker daemon no `docker build`.
+# Quanto menos coisa vai, mais rápido o build e menor o risco de
+# vazar arquivos locais pra dentro da imagem.
+
+# Build e artefatos
+target/
+*.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Config local e documentação de sessão
+.env
+.env.*
+!.env.example
+CLAUDE.md
+orientacao/
+memory/
+.claude/
+docs/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

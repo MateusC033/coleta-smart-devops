@@ -1,0 +1,29 @@
+# Build
+target/
+*.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+
+# Config local
+.env
+
+# Material de apoio desta sessão (não entra no repo nem no .zip)
+CLAUDE.md
+orientacao/
+memory/
+.claude/
+# Hooks recriados por extensão do IDE
+.github/modernize/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

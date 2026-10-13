@@ -1,0 +1,60 @@
+# Orquestração local: aplicação + Postgres.
+# Variáveis vêm do arquivo .env (ver .env.example).
+# Uso: `docker compose up --build`
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: coleta-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - coleta-net
+    healthcheck:
+      # O app só sobe depois que o Postgres aceita conexões.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: coleta-smart:local
+    container_name: coleta-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION}
+      PORT: ${PORT}
+    ports:
+      - "${PORT}:${PORT}"
+    networks:
+      - coleta-net
+    healthcheck:
+      # /actuator/health está liberado no SecurityConfig.
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:${PORT}/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+networks:
+  coleta-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+    driver: local
