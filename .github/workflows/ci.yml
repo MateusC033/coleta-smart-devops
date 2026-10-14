@@ -1,0 +1,70 @@
+name: CI/CD
+
+# Dispara em qualquer push para main/develop e em pull requests que apontam para
+# essas branches. O deploy em si acontece no Railway, que observa as duas branches:
+# push em develop deploya em staging; push em main deploya em production.
+# Este workflow garante que o build e os testes passam ANTES do deploy.
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build-test:
+    name: Build + Testes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do codigo
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Build com Maven
+        run: mvn -B -ntp clean package -DskipTests
+
+      - name: Rodar testes
+        run: mvn -B -ntp test
+
+      - name: Publicar relatorio de testes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/
+          if-no-files-found: ignore
+
+  deploy-staging:
+    name: Deploy em staging (Railway)
+    needs: build-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://app-staging-36d2.up.railway.app
+    steps:
+      - name: Confirmar deploy via Railway
+        run: |
+          echo "Build e testes verdes. O Railway (environment=staging, branch=develop)"
+          echo "detecta este commit e inicia o deploy automaticamente."
+          echo "URL: https://app-staging-36d2.up.railway.app"
+
+  deploy-production:
+    name: Deploy em production (Railway)
+    needs: build-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://app-production-90364.up.railway.app
+    steps:
+      - name: Confirmar deploy via Railway
+        run: |
+          echo "Build e testes verdes. O Railway (environment=production, branch=main)"
+          echo "detecta este commit e inicia o deploy automaticamente."
+          echo "URL: https://app-production-90364.up.railway.app"
