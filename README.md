@@ -46,7 +46,30 @@ Pré-requisitos: Docker Desktop (Windows ou macOS) ou Docker Engine + Compose (L
 
 ## Pipeline CI/CD
 
-> Esta seção será preenchida com o detalhamento do pipeline (etapas, ferramenta, deploy em staging e produção) após a montagem do workflow do GitHub Actions e dos ambientes no Railway.
+A ferramenta escolhida foi o **GitHub Actions**. O workflow está em `.github/workflows/ci.yml` e dispara em dois eventos: `push` nas branches `main` e `develop` e `pull_request` apontando para essas branches.
+
+### Branches e ambientes
+
+A convenção é a clássica de dois ambientes:
+
+| Branch | Ambiente no Railway | URL |
+|---|---|---|
+| `develop` | staging | https://app-staging-36d2.up.railway.app |
+| `main` | production | https://app-production-90364.up.railway.app |
+
+O fluxo é: desenvolvo em `develop`, push → o pipeline builda, testa e, se verde, o Railway deploya em staging. Quando a versão passa no staging, faço merge em `main` → o mesmo pipeline roda e o Railway deploya em production.
+
+### Jobs do workflow
+
+1. **`build-test`** (roda sempre): checkout, setup do JDK 17 (Temurin, com cache do Maven), `mvn clean package -DskipTests` e `mvn test`. O artefato `surefire-reports` é publicado para debug em caso de falha.
+2. **`deploy-staging`** (só em push na `develop`): depende do `build-test` verde. Usa `environment: staging` do GitHub Actions, o que registra o deploy na UI do commit com o link do ambiente.
+3. **`deploy-production`** (só em push na `main`): idêntico ao anterior, mas para o ambiente de produção.
+
+### Como o deploy funciona na prática
+
+O deploy real é executado pelo **Railway**, que observa diretamente as branches `main` e `develop` do repositório. Nos dois ambientes está ativada a opção **"Wait for CI"**: o Railway só inicia o deploy depois que o workflow do GitHub Actions ficar verde para aquele commit. Isso impede que código com testes quebrados vá para o ar.
+
+A conexão entre a aplicação e o Postgres é feita por rede privada do Railway, usando **reference variables** (`${{Postgres.PGHOST}}`, `${{Postgres.PGPORT}}`, etc.) que resolvem para o Postgres do mesmo environment. Credenciais e `JWT_SECRET` são distintos entre staging e production. Nenhuma senha está no repositório.
 
 ## Containerização
 
@@ -75,7 +98,16 @@ Variáveis de ambiente, volume e rede são as três peças que o enunciado pede 
 
 ## Prints do funcionamento
 
-> Os prints de evidência (pipeline verde, ambientes de staging e produção no ar e `docker compose up` local) serão incluídos em `docs/prints/` na etapa final da entrega.
+Todas as evidências estão em [`docs/prints/`](docs/prints/).
+
+| # | Evidência | Arquivo |
+|---|---|---|
+| 1 | GitHub Actions com os workflows das branches `main` e `develop` verdes | [`01-pipeline-list.png`](docs/prints/01-pipeline-list.png) |
+| 2 | Detalhe de um workflow mostrando os três jobs (`build-test`, `deploy-staging`, `deploy-production`) e o link do ambiente | [`03-pipeline-jobs.png`](docs/prints/03-pipeline-jobs.png) |
+| 3 | Canvas do Railway em **production** com Postgres e `app` online | [`04-railway-production.png`](docs/prints/04-railway-production.png) |
+| 4 | Canvas do Railway em **staging** com Postgres e `app` online | [`05-railway-staging.png`](docs/prints/05-railway-staging.png) |
+| 5 | `GET /actuator/health` de **staging** respondendo `{"status":"UP"}` | [`06-staging-health.png`](docs/prints/06-staging-health.png) |
+| 6 | `GET /actuator/health` de **production** respondendo `{"status":"UP"}` | [`07-production-health.png`](docs/prints/07-production-health.png) |
 
 ## Tecnologias utilizadas
 
@@ -96,10 +128,10 @@ Variáveis de ambiente, volume e rede são as três peças que o enunciado pede 
 | Projeto compactado em .ZIP com estrutura organizada | ☐ |
 | Dockerfile funcional | ☑ |
 | docker-compose.yml ou arquivos Kubernetes | ☑ |
-| Pipeline com etapas de build, teste e deploy | ☐ |
-| README.md com instruções e prints | ☐ |
+| Pipeline com etapas de build, teste e deploy | ☑ |
+| README.md com instruções e prints | ☑ |
 | Documentação técnica com evidências (PDF ou PPT) | ☐ |
-| Deploy realizado nos ambientes staging e produção | ☐ |
+| Deploy realizado nos ambientes staging e produção | ☑ |
 
 ---
 
